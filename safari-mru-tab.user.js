@@ -542,7 +542,9 @@
         color: white;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         box-shadow: 0 5px 30px rgba(0, 0, 0, 0.5);
-        max-width: 80%;
+        min-width: 300px;
+        max-width: 600px;
+        width: 50%;
         overflow: hidden;
         transition: opacity 0.2s ease-in-out;
         opacity: 0;
@@ -574,12 +576,12 @@
 
     // Create tab list
     const tabList = document.createElement('div');
-    tabList.style.cssText = 'display: flex; flex-direction: column; gap: 8px;';
+    tabList.style.cssText = 'display: flex; flex-direction: column; gap: 8px; max-width: 100%;';
 
     tabCycleHistory.forEach((tab, index) => {
       const tabItem = document.createElement('div');
 
-      // Highlight current selection
+      // Highlight current selection - both active and inactive items have the same border width
       if (index === currentCycleIndex) {
         tabItem.style.cssText = `
           padding: 8px 12px;
@@ -593,6 +595,7 @@
           text-overflow: ellipsis;
           border-left: 4px solid #ffffff;
           cursor: pointer;
+          max-width: 100%;
         `;
       } else {
         tabItem.style.cssText = `
@@ -607,50 +610,37 @@
           text-overflow: ellipsis;
           cursor: pointer;
           transition: background-color 0.2s ease;
+          max-width: 100%;
+          border-left: 4px solid transparent;
         `;
       }
 
-      // Add hover effect for better clickable indication
-      tabItem.onmouseenter = function() {
-        if (index !== currentCycleIndex) {
-          this.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
-        }
-      };
+      // Container for title with enforced max-width
+      const titleContainer = document.createElement('div');
+      titleContainer.style.cssText = 'flex: 1; min-width: 0; max-width: calc(100% - 80px); display: flex; align-items: center;';
 
-      tabItem.onmouseleave = function() {
-        if (index !== currentCycleIndex) {
-          this.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-        }
-      };
-
-      // Add click handler for tab selection
-      tabItem.onclick = function() {
-        // Update index and switch to this tab
-        currentCycleIndex = index;
-        updateTabCycleOverlay();
-
-        // Small delay for visual feedback that the tab was selected
-        setTimeout(() => {
-          switchToSelectedCycleTab();
-          hideTabCycleOverlay();
-          isAltKeyPressed = false;
-        }, 50);
-      };
-
-      // Tab title
+      // Tab title with proper truncation
       const tabTitle = document.createElement('div');
       tabTitle.textContent = tab.title;
-      tabTitle.style.cssText = 'flex: 1; overflow: hidden; text-overflow: ellipsis;';
+      tabTitle.style.cssText = 'white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%;';
+
+      // Add title attribute to show full title on hover
+      tabTitle.title = tab.title;
+
+      titleContainer.appendChild(tabTitle);
+      tabItem.appendChild(titleContainer);
 
       // Tab index if available
       const tabIndex = document.createElement('div');
       if (tab.index >= 0) {
         tabIndex.textContent = `Tab #${tab.index + 1}`;
-        tabIndex.style.cssText = 'margin-left: 10px; color: #aaa; font-size: 12px;';
+        tabIndex.style.cssText = 'margin-left: 10px; color: #aaa; font-size: 12px; flex-shrink: 0;';
       }
 
-      tabItem.appendChild(tabTitle);
-      tabItem.appendChild(tabIndex);
+      if (tabIndex.textContent) {
+        tabItem.appendChild(tabIndex);
+      }
+
       tabList.appendChild(tabItem);
     });
 
