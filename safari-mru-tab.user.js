@@ -211,13 +211,6 @@
       GM_getTabs(function(tabs) {
         console.log('Safari MRU Tab Switch: Retrieved data for ' + Object.keys(tabs).length + ' active tabs');
 
-        // If we have suspiciously few tabs reported, don't clean up
-        if (Object.keys(tabs).length < 2 && history.length > 2) {
-          console.warn('Safari MRU Tab Switch: Too few tabs reported by GM_getTabs, skipping cleanup');
-          if (callback) callback(history);
-          return;
-        }
-
         // Create a map of active tab URLs from GM_getTabs data
         const activeTabUrls = new Set();
         for (const [tabId, tabData] of Object.entries(tabs)) {
@@ -552,7 +545,7 @@
       });
   }
 
-  // Create tab cycle overlay
+  // Create tab cycle overlay with improved width constraints and text handling
   function createTabCycleOverlay() {
     // Create overlay container if it doesn't exist
     if (!tabCycleOverlay) {
@@ -571,7 +564,8 @@
         color: white;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         box-shadow: 0 5px 30px rgba(0, 0, 0, 0.5);
-        max-width: 80%;
+        max-width: 600px;
+        width: 80%;
         overflow: hidden;
         transition: opacity 0.2s ease-in-out;
         opacity: 0;
@@ -583,7 +577,7 @@
     return tabCycleOverlay;
   }
 
-  // Update the tab cycle overlay content
+  // Update the tab cycle overlay content with improved text truncation
   function updateTabCycleOverlay() {
     const overlay = createTabCycleOverlay();
 
@@ -601,14 +595,14 @@
     title.style.cssText = 'font-size: 14px; margin-bottom: 10px; text-align: center; color: #aaa;';
     overlay.appendChild(title);
 
-    // Create tab list
+    // Create tab list with improved styling
     const tabList = document.createElement('div');
-    tabList.style.cssText = 'display: flex; flex-direction: column; gap: 8px;';
+    tabList.style.cssText = 'display: flex; flex-direction: column; gap: 8px; max-height: 70vh; overflow-y: auto;';
 
     tabCycleHistory.forEach((tab, index) => {
       const tabItem = document.createElement('div');
 
-      // Highlight current selection
+      // Highlight current selection with improved text handling
       if (index === currentCycleIndex) {
         tabItem.style.cssText = `
           padding: 8px 12px;
@@ -616,10 +610,8 @@
           background-color: rgba(59, 130, 246, 0.8);
           display: flex;
           align-items: center;
-          justify-content: space-between;
           white-space: nowrap;
           overflow: hidden;
-          text-overflow: ellipsis;
           border-left: 4px solid #ffffff;
           cursor: pointer;
         `;
@@ -630,29 +622,32 @@
           background-color: rgba(255, 255, 255, 0.1);
           display: flex;
           align-items: center;
-          justify-content: space-between;
           white-space: nowrap;
           overflow: hidden;
-          text-overflow: ellipsis;
           border-left: 4px solid transparent;
           cursor: pointer;
         `;
       }
 
-      // Tab title
-      const tabTitle = document.createElement('div');
+      // Tab title container with improved text truncation
+      const tabTitleContainer = document.createElement('div');
+      tabTitleContainer.style.cssText = 'flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis;';
+
+      // Tab title with guaranteed truncation
+      const tabTitle = document.createElement('span');
       tabTitle.textContent = tab.title;
-      tabTitle.style.cssText = 'flex: 1; overflow: hidden; text-overflow: ellipsis;';
+      tabTitle.style.cssText = 'display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis;';
 
-      // Tab index if available
-      const tabIndex = document.createElement('div');
+      tabTitleContainer.appendChild(tabTitle);
+      tabItem.appendChild(tabTitleContainer);
+
+      // Tab index if available, with fixed width to ensure consistent layout
       if (tab.index >= 0) {
+        const tabIndex = document.createElement('div');
         tabIndex.textContent = `Tab #${tab.index + 1}`;
-        tabIndex.style.cssText = 'margin-left: 10px; color: #aaa; font-size: 12px;';
+        tabIndex.style.cssText = 'margin-left: 10px; color: #aaa; font-size: 12px; min-width: 50px; text-align: right; flex-shrink: 0;';
+        tabItem.appendChild(tabIndex);
       }
-
-      tabItem.appendChild(tabTitle);
-      tabItem.appendChild(tabIndex);
 
       // Add click handler to switch to this tab
       tabItem.addEventListener('click', (e) => {
