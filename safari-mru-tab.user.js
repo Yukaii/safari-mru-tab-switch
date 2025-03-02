@@ -924,6 +924,34 @@
     }
   });
 
+  // Add window focus handler to refresh tab data
+  window.addEventListener('focus', function() {
+    console.log('Safari MRU Tab Switch: Window gained focus, refreshing tab data');
+
+    // Update tracking for this tab
+    initializeTabTracking();
+
+    // Clean up closed tabs
+    cleanupTabsUsingGMTabs();
+
+    // If tab cycle overlay is currently visible, refresh its content
+    if (tabCycleOverlay && tabCycleOverlay.style.display === 'block') {
+      console.log('Safari MRU Tab Switch: Refreshing visible tab cycle overlay');
+
+      // Get fresh tab history
+      setTimeout(() => {
+        tabCycleHistory = getTabHistory();
+
+        // If the currently selected tab was closed, reset to first tab
+        if (currentCycleIndex >= tabCycleHistory.length) {
+          currentCycleIndex = 0;
+        }
+
+        updateTabCycleOverlay();
+      }, 100); // Short delay to allow cleanup to complete
+    }
+  });
+
   // Debug functions for the console
   function debugShowHistory() {
       const history = getTabHistory();
