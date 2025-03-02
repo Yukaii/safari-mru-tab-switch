@@ -26,9 +26,12 @@
   const HISTORY_KEY = 'mruTabHistoryWithIndices';
   const MAX_HISTORY = 10;
   const RAYCAST_DEEPLINK_PREFIX = 'raycast://script-commands/switch-safari-tab';
-  const CLEANUP_INTERVAL = 1000 * 60 * 15; // Increase to 15 minutes to reduce cleanup frequency
-  const BACKUP_HISTORY_KEY = 'mruTabHistoryBackup'; // Add a backup key for history
   const MIN_TABS_THRESHOLD = 3; // Minimum number of tabs to keep in history
+  const NEW_TAB_CHECK_INTERVAL = 60000; // Check for new tabs every minute
+  // Removed TITLE_UPDATE_DEBOUNCE constant
+
+  // Add new variable to track when we last checked for new tabs
+  let lastNewTabCheckTime = 0;
 
   // URL patterns to exclude from history
   const EXCLUDED_URL_PATTERNS = [
@@ -48,18 +51,12 @@
   let currentCycleIndex = 0;
   let tabCycleHistory = [];
 
-  // Add session cache to prevent fluctuations when repeatedly pressing Alt
-  let tabHistoryCache = null;
-  let lastHistoryCacheTime = 0;
-  const HISTORY_CACHE_TTL = 10000; // 10 seconds cache validity
+  // Remove all cache-related variables
 
   // Variable to track if we're currently switching tabs
   let isSwitching = false;
   let lastSwitchTime = 0;
   const DOUBLE_PRESS_THRESHOLD = 500; // ms
-
-  // Add new properties to track potentially closed tabs
-  let lastCleanupTime = 0;
 
   // Add variable to track initial tab index
   let initialCycleIndex = 0;
@@ -119,89 +116,15 @@
       };
   }
 
-  // Get the tab order history with backup recovery option
+  // Get the tab order history - simplified without backup recovery
   function getTabHistory() {
-      const history = GM_getValue(HISTORY_KEY, []);
-
-      // If history is empty or suspiciously small but we have a backup, investigate
-      if (history.length < MIN_TABS_THRESHOLD) {
-          const backupHistory = GM_getValue(BACKUP_HISTORY_KEY, []);
-          if (backupHistory.length > history.length) {
-              console.log('Safari MRU Tab Switch: Main history suspiciously small, checking if backup is more complete');
-
-              // Get a list of active tabs to verify the backup against
-              try {
-                  GM_getTabs(function(tabs) {
-                      // Count how many tabs from backup exist in active tabs
-                      let validBackupTabs = 0;
-                      const activeUrls = new Set(
-                          Object.values(tabs)
-                              .filter(tab => tab.mruTabData && tab.mruTabData.url)
-                              .map(tab => tab.mruTabData.url)
-                      );
-
-                      backupHistory.forEach(tab => {
-                          if (activeUrls.has(tab.url)) validBackupTabs++;
-                      });
-
-                      // If backup seems more accurate, restore from it
-                      if (validBackupTabs > history.length) {
-                          console.log(`Safari MRU Tab Switch: Restoring from backup history (found ${validBackupTabs} valid tabs vs ${history.length} in current history)`);
-                          GM_setValue(HISTORY_KEY, backupHistory);
-                          return backupHistory;
-                      }
-                  });
-              } catch (e) {
-                  console.error('Safari MRU Tab Switch: Error checking backup history:', e);
-              }
-          }
-      }
-
-      return history;
+      return GM_getValue(HISTORY_KEY, []);
   }
 
-  // Get cached tab history or fetch if needed
-  function getCachedTabHistory() {
-    const now = Date.now();
-
-    // Use cache if it's recent enough
-    if (tabHistoryCache && (now - lastHistoryCacheTime) < HISTORY_CACHE_TTL) {
-      console.log('Safari MRU Tab Switch: Using cached tab history');
-      return tabHistoryCache;
-    }
-
-    // Otherwise fetch fresh history
-    const history = getTabHistory();
-
-    // Update cache
-    tabHistoryCache = history;
-    lastHistoryCacheTime = now;
-
-    console.log('Safari MRU Tab Switch: Updated tab history cache with', history.length, 'tabs');
-    return history;
-  }
-
-  // Force refresh the history cache
-  function invalidateHistoryCache() {
-    tabHistoryCache = null;
-    lastHistoryCacheTime = 0;
-    console.log('Safari MRU Tab Switch: Tab history cache invalidated');
-  }
-
-  // Save the tab order history with improved backup
+  // Save the tab order history - simplified without backup
   function saveTabHistory(history) {
-      // Store the previous history as backup before overwriting
-      const previousHistory = GM_getValue(HISTORY_KEY, []);
-      if (previousHistory && previousHistory.length > 0) {
-          GM_setValue(BACKUP_HISTORY_KEY, previousHistory);
-          console.log('Safari MRU Tab Switch: Created backup of previous history with', previousHistory.length, 'tabs');
-      }
-
       GM_setValue(HISTORY_KEY, history);
       console.log('Safari MRU Tab Switch: Saved tab history:', history);
-
-      // Always invalidate the cache when history changes
-      invalidateHistoryCache();
   }
 
   // Update tab history when this tab is accessed
@@ -274,22 +197,26 @@
       return `${RAYCAST_DEEPLINK_PREFIX}?arguments=${encodeURIComponent(argument)}`;
   }
 
-  // Improved tab cleanup with safeguards
-  function cleanupTabsUsingGMTabs() {
-    console.log('Safari MRU Tab Switch: Running comprehensive tab cleanup with GM_getTabs');
+  // Improved cleanup function that's always called directly
+  function cleanupTabsUsingGMTabs(callback) {
+    console.log('Safari MRU Tab Switch: Running fresh tab cleanup with GM_getTabs');
 
     // Get current history
     const history = getTabHistory();
-    if (!history || history.length === 0) return;
+    if (!history || history.length === 0) {
+      if (callback) callback(history);
+      return;
+    }
 
     // Use GM_getTabs to get all active tabs
     try {
       GM_getTabs(function(tabs) {
         console.log('Safari MRU Tab Switch: Retrieved data for ' + Object.keys(tabs).length + ' active tabs');
 
-        // If we have suspiciously few tabs reported, abort the cleanup
+        // If we have suspiciously few tabs reported, don't clean up
         if (Object.keys(tabs).length < 2 && history.length > 2) {
-          console.warn('Safari MRU Tab Switch: Too few tabs reported by GM_getTabs, aborting cleanup to prevent data loss');
+          console.warn('Safari MRU Tab Switch: Too few tabs reported by GM_getTabs, skipping cleanup');
+          if (callback) callback(history);
           return;
         }
 
@@ -305,7 +232,8 @@
 
         // Only proceed if we have a reasonable number of active URLs
         if (activeTabUrls.size < 2 && history.length > 3) {
-          console.warn('Safari MRU Tab Switch: Too few active URLs detected, aborting cleanup to prevent data loss');
+          console.warn('Safari MRU Tab Switch: Too few active URLs detected, skipping cleanup');
+          if (callback) callback(history);
           return;
         }
 
@@ -323,7 +251,8 @@
         const removalPercentage = (removalCount / history.length) * 100;
 
         if (removalCount > 0 && removalPercentage > 70) {
-          console.warn(`Safari MRU Tab Switch: Attempting to remove ${removalPercentage.toFixed(1)}% of tabs (${removalCount}/${history.length}), which seems excessive. Aborting cleanup.`);
+          console.warn(`Safari MRU Tab Switch: Attempting to remove ${removalPercentage.toFixed(1)}% of tabs, which seems excessive. Skipping cleanup.`);
+          if (callback) callback(history);
           return;
         }
 
@@ -331,25 +260,16 @@
         if (updatedHistory.length !== history.length) {
           console.log(`Safari MRU Tab Switch: Removed ${history.length - updatedHistory.length} closed tabs from history`);
           saveTabHistory(updatedHistory);
+          if (callback) callback(updatedHistory);
         } else {
           console.log('Safari MRU Tab Switch: No closed tabs found in history');
+          if (callback) callback(history);
         }
       });
     } catch (e) {
       console.error('Safari MRU Tab Switch: Error using GM_getTabs:', e);
+      if (callback) callback(history);
     }
-  }
-
-  // Replace the old cleanup function with the new one
-  function cleanupClosedTabs() {
-    const now = Date.now();
-
-    if (now - lastCleanupTime < CLEANUP_INTERVAL) {
-      return; // Don't clean up too frequently
-    }
-
-    lastCleanupTime = now;
-    cleanupTabsUsingGMTabs();
   }
 
   // Update: Mark a tab as potentially closed
@@ -547,7 +467,7 @@
       }, 1000);
   }
 
-  // Initialize tab tracking - simplified
+  // Initialize tab tracking - simplified without title observer
   function initializeTabTracking() {
       // Skip if URL should be excluded
       if (shouldExcludeUrl(window.location.href)) {
@@ -568,8 +488,10 @@
           setTimeout(updateTabIndex, 1500);
           setTimeout(updateTabIndex, 3000);
 
-          // Run comprehensive tab cleanup to keep history accurate
-          cleanupTabsUsingGMTabs();
+          // Also do a check for any other new tabs
+          setTimeout(checkForNewTabs, 2000);
+
+          // Removed setupTitleObserver() call
       }
   }
 
@@ -735,7 +657,7 @@
     overlay.appendChild(tabList);
   }
 
-  // Show the tab cycle overlay - Updated to use cached history and avoid flickering
+  // Show the tab cycle overlay - Updated to always clean up tabs first
   function showTabCycleOverlay() {
     const overlay = createTabCycleOverlay();
 
@@ -745,38 +667,26 @@
       return;
     }
 
-    // Check if history is suspiciously small and try to recover
-    const currentHistory = getCachedTabHistory();
-    if (currentHistory.length < MIN_TABS_THRESHOLD) {
-      console.log('Safari MRU Tab Switch: Tab history seems small, checking for backup');
-      recoverHistoryFromBackup();
-      invalidateHistoryCache(); // Force refresh after recovery
-    }
-
-    // Run cleanup only periodically, not every time we show the overlay
+    // Check for new tabs if it's been a while since our last check
     const now = Date.now();
-    if (!lastCleanupTime || (now - lastCleanupTime) > CLEANUP_INTERVAL) {
-      // Only clean up if we have enough tabs to avoid aggressive cleanup
-      if (currentHistory.length > 3) {
-        cleanupTabsUsingGMTabs();
-        // After cleanup, invalidate the cache for next time
-        setTimeout(() => {
-          invalidateHistoryCache();
-        }, 1000);
-      }
+    if (!lastNewTabCheckTime || (now - lastNewTabCheckTime > NEW_TAB_CHECK_INTERVAL)) {
+      checkForNewTabs();
     }
 
-    // Use the cached history to avoid flickering
-    tabCycleHistory = getCachedTabHistory();
-    currentCycleIndex = 0;
-    initialCycleIndex = 0;
-    updateTabCycleOverlay();
+    // Always run cleanup before showing overlay
+    cleanupTabsUsingGMTabs((cleanHistory) => {
+      // Get fresh history and update the UI
+      tabCycleHistory = getTabHistory();
+      currentCycleIndex = 0;
+      initialCycleIndex = 0;
+      updateTabCycleOverlay();
 
-    // Show overlay with fade-in effect
-    overlay.style.display = 'block';
-    setTimeout(() => {
-      overlay.style.opacity = '1';
-    }, 30);
+      // Show overlay with fade-in effect
+      overlay.style.display = 'block';
+      setTimeout(() => {
+        overlay.style.opacity = '1';
+      }, 30);
+    });
   }
 
   // Hide the tab cycle overlay
@@ -916,7 +826,7 @@
     }
   }
 
-  // Fix the Alt+Tab handling - don't switch immediately and use cached history
+  // Fix the Alt+Tab handling - don't switch immediately and always use fresh history
   document.addEventListener('keydown', function(e) {
       // Only use Alt+Tab now, but don't switch immediately - show overlay instead
       if (e.altKey && e.key === 'Tab') {
@@ -929,7 +839,7 @@
             isAltKeyPressed = true;
             showTabCycleOverlay();
 
-            // Use cached history for consistent results
+            // Always use fresh history
             if (tabCycleHistory.length > 1) {
               // If Shift is pressed, go to last tab instead of second tab for initial selection
               if (e.shiftKey && tabCycleHistory.length > 2) {
@@ -1037,14 +947,13 @@
   document.addEventListener('keydown', handleEscapeKey, true);
   window.addEventListener('keydown', handleEscapeKey, true);
 
-  // Handle visibility change - refresh cache when tab becomes visible
+  // Handle visibility change - refresh data when tab becomes visible
   document.addEventListener('visibilitychange', function() {
     console.log(`Safari MRU Tab Switch: Visibility changed to: ${document.visibilityState}`);
 
     if (document.visibilityState === 'visible') {
         console.log('Safari MRU Tab Switch: Tab became visible, updating history');
         initializeTabTracking();
-        invalidateHistoryCache(); // Ensure fresh history when tab becomes visible
     }
 
     // Also clean up the tab cycle UI if the document becomes hidden
@@ -1092,21 +1001,64 @@
       });
   }
 
-  // Add function to recover history from backup if needed
-  function recoverHistoryFromBackup() {
-    const currentHistory = GM_getValue(HISTORY_KEY, []);
-    const backupHistory = GM_getValue(BACKUP_HISTORY_KEY, []);
+  // Enhanced function to check for new tabs and add them to history
+  function checkForNewTabs() {
+    console.log('Safari MRU Tab Switch: Checking for new tabs...');
 
-    if (backupHistory.length > currentHistory.length) {
-      console.log(`Safari MRU Tab Switch: Recovering from backup history (${backupHistory.length} tabs vs ${currentHistory.length})`);
-      GM_setValue(HISTORY_KEY, backupHistory);
-      return backupHistory;
+    // Get current history
+    const history = getTabHistory();
+
+    // Create a map of URLs we already know about
+    const knownUrls = new Set(history.map(tab => tab.url));
+
+    // No longer check for title updates since title observer is removed
+    try {
+      GM_getTabs(function(tabs) {
+        console.log(`Safari MRU Tab Switch: Found ${Object.keys(tabs).length} active tabs`);
+
+        const newTabsFound = [];
+
+        // Look for tabs that aren't in our history
+        for (const [tabId, tabData] of Object.entries(tabs)) {
+          if (tabData.mruTabData && tabData.mruTabData.url && !shouldExcludeUrl(tabData.mruTabData.url)) {
+            if (!knownUrls.has(tabData.mruTabData.url)) {
+              // New tab
+              console.log(`Safari MRU Tab Switch: Found new tab not in history: ${tabData.mruTabData.title}`);
+              newTabsFound.push(tabData.mruTabData);
+            }
+            // Removed title update checking
+          }
+        }
+
+        // Save changes if we found new tabs
+        if (newTabsFound.length > 0) {
+          console.log(`Safari MRU Tab Switch: Adding ${newTabsFound.length} new tabs to history`);
+
+          // Add new tabs to front of history in the order they were found
+          const updatedHistory = [...newTabsFound, ...history];
+
+          // Trim if necessary
+          while (updatedHistory.length > MAX_HISTORY) {
+            updatedHistory.pop();
+          }
+
+          // Save updated history
+          saveTabHistory(updatedHistory);
+        } else {
+          console.log('Safari MRU Tab Switch: No new tabs found');
+        }
+      });
+    } catch (e) {
+      console.error('Safari MRU Tab Switch: Error checking for new tabs:', e);
     }
 
-    return currentHistory;
+    // Update the last check time
+    lastNewTabCheckTime = Date.now();
   }
 
-  // Update debug functions with history recovery
+  // Removed the setInterval for periodic tab checking
+
+  // Updated debug functions - remove title-related functions
   unsafeWindow._mruTabSwitch = {
       showHistory: debugShowHistory,
       switchToPrevious: switchToPreviousTab,
@@ -1118,8 +1070,7 @@
       hideTabCycleOverlay: hideTabCycleOverlay,
       showActiveTabs: debugShowActiveTabs,
       cleanupTabs: cleanupTabsUsingGMTabs,
-      recoverFromBackup: recoverHistoryFromBackup,
-      refreshCache: invalidateHistoryCache // Add function to manually refresh cache
+      checkForNewTabs: checkForNewTabs
   };
 
   // Initialize when the document is ready
