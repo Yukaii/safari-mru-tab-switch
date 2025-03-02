@@ -604,6 +604,7 @@
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
+          border-left: 4px solid transparent;
         `;
       }
 
