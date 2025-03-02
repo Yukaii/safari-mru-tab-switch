@@ -592,6 +592,7 @@
           overflow: hidden;
           text-overflow: ellipsis;
           border-left: 4px solid #ffffff;
+          cursor: pointer;
         `;
       } else {
         tabItem.style.cssText = `
@@ -604,8 +605,37 @@
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
+          cursor: pointer;
+          transition: background-color 0.2s ease;
         `;
       }
+
+      // Add hover effect for better clickable indication
+      tabItem.onmouseenter = function() {
+        if (index !== currentCycleIndex) {
+          this.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
+        }
+      };
+
+      tabItem.onmouseleave = function() {
+        if (index !== currentCycleIndex) {
+          this.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+        }
+      };
+
+      // Add click handler for tab selection
+      tabItem.onclick = function() {
+        // Update index and switch to this tab
+        currentCycleIndex = index;
+        updateTabCycleOverlay();
+
+        // Small delay for visual feedback that the tab was selected
+        setTimeout(() => {
+          switchToSelectedCycleTab();
+          hideTabCycleOverlay();
+          isAltKeyPressed = false;
+        }, 50);
+      };
 
       // Tab title
       const tabTitle = document.createElement('div');
