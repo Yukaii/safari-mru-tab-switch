@@ -542,9 +542,7 @@
         color: white;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         box-shadow: 0 5px 30px rgba(0, 0, 0, 0.5);
-        min-width: 300px;
-        max-width: 600px;
-        width: 50%;
+        max-width: 80%;
         overflow: hidden;
         transition: opacity 0.2s ease-in-out;
         opacity: 0;
@@ -576,12 +574,12 @@
 
     // Create tab list
     const tabList = document.createElement('div');
-    tabList.style.cssText = 'display: flex; flex-direction: column; gap: 8px; max-width: 100%;';
+    tabList.style.cssText = 'display: flex; flex-direction: column; gap: 8px;';
 
     tabCycleHistory.forEach((tab, index) => {
       const tabItem = document.createElement('div');
 
-      // Highlight current selection - both active and inactive items have the same border width
+      // Highlight current selection
       if (index === currentCycleIndex) {
         tabItem.style.cssText = `
           padding: 8px 12px;
@@ -594,8 +592,6 @@
           overflow: hidden;
           text-overflow: ellipsis;
           border-left: 4px solid #ffffff;
-          cursor: pointer;
-          max-width: 100%;
         `;
       } else {
         tabItem.style.cssText = `
@@ -608,39 +604,23 @@
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
-          cursor: pointer;
-          transition: background-color 0.2s ease;
-          max-width: 100%;
-          border-left: 4px solid transparent;
         `;
       }
 
-      // Container for title with enforced max-width
-      const titleContainer = document.createElement('div');
-      titleContainer.style.cssText = 'flex: 1; min-width: 0; max-width: calc(100% - 80px); display: flex; align-items: center;';
-
-      // Tab title with proper truncation
+      // Tab title
       const tabTitle = document.createElement('div');
       tabTitle.textContent = tab.title;
-      tabTitle.style.cssText = 'white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%;';
-
-      // Add title attribute to show full title on hover
-      tabTitle.title = tab.title;
-
-      titleContainer.appendChild(tabTitle);
-      tabItem.appendChild(titleContainer);
+      tabTitle.style.cssText = 'flex: 1; overflow: hidden; text-overflow: ellipsis;';
 
       // Tab index if available
       const tabIndex = document.createElement('div');
       if (tab.index >= 0) {
         tabIndex.textContent = `Tab #${tab.index + 1}`;
-        tabIndex.style.cssText = 'margin-left: 10px; color: #aaa; font-size: 12px; flex-shrink: 0;';
+        tabIndex.style.cssText = 'margin-left: 10px; color: #aaa; font-size: 12px;';
       }
 
-      if (tabIndex.textContent) {
-        tabItem.appendChild(tabIndex);
-      }
-
+      tabItem.appendChild(tabTitle);
+      tabItem.appendChild(tabIndex);
       tabList.appendChild(tabItem);
     });
 
@@ -921,34 +901,6 @@
     if (document.visibilityState === 'hidden' && isAltKeyPressed) {
       isAltKeyPressed = false;
       hideTabCycleOverlay();
-    }
-  });
-
-  // Add window focus handler to refresh tab data
-  window.addEventListener('focus', function() {
-    console.log('Safari MRU Tab Switch: Window gained focus, refreshing tab data');
-
-    // Update tracking for this tab
-    initializeTabTracking();
-
-    // Clean up closed tabs
-    cleanupTabsUsingGMTabs();
-
-    // If tab cycle overlay is currently visible, refresh its content
-    if (tabCycleOverlay && tabCycleOverlay.style.display === 'block') {
-      console.log('Safari MRU Tab Switch: Refreshing visible tab cycle overlay');
-
-      // Get fresh tab history
-      setTimeout(() => {
-        tabCycleHistory = getTabHistory();
-
-        // If the currently selected tab was closed, reset to first tab
-        if (currentCycleIndex >= tabCycleHistory.length) {
-          currentCycleIndex = 0;
-        }
-
-        updateTabCycleOverlay();
-      }, 100); // Short delay to allow cleanup to complete
     }
   });
 
