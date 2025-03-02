@@ -24,14 +24,12 @@
 
   // Constants
   const HISTORY_KEY = 'mruTabHistoryWithIndices';
-  const MAX_HISTORY = 10;
   const RAYCAST_DEEPLINK_PREFIX = 'raycast://script-commands/switch-safari-tab';
-  const MIN_TABS_THRESHOLD = 3; // Minimum number of tabs to keep in history
-  const NEW_TAB_CHECK_INTERVAL = 60000; // Check for new tabs every minute
-  // Removed TITLE_UPDATE_DEBOUNCE constant
+  // Removed MAX_HISTORY constant
+  // Removed NEW_TAB_CHECK_INTERVAL constant
 
-  // Add new variable to track when we last checked for new tabs
-  let lastNewTabCheckTime = 0;
+  // Remove variable to track when we last checked for new tabs
+  // let lastNewTabCheckTime = 0;
 
   // URL patterns to exclude from history
   const EXCLUDED_URL_PATTERNS = [
@@ -161,11 +159,11 @@
       // Add this tab to the beginning of history
       history.unshift(tabData);
 
-      // Limit history size
-      while (history.length > MAX_HISTORY) {
-          const removed = history.pop();
-          console.log(`Safari MRU Tab Switch: Removed oldest tab from history: ${removed.url}`);
-      }
+      // Removed history size limitation:
+      // while (history.length > MAX_HISTORY) {
+      //     const removed = history.pop();
+      //     console.log(`Safari MRU Tab Switch: Removed oldest tab from history: ${removed.url}`);
+      // }
 
       // Save the updated history
       saveTabHistory(history);
@@ -688,11 +686,8 @@
       return;
     }
 
-    // Check for new tabs if it's been a while since our last check
-    const now = Date.now();
-    if (!lastNewTabCheckTime || (now - lastNewTabCheckTime > NEW_TAB_CHECK_INTERVAL)) {
-      checkForNewTabs();
-    }
+    // Always check for new tabs, removed time check
+    checkForNewTabs();
 
     // Always run cleanup before showing overlay
     cleanupTabsUsingGMTabs((cleanHistory) => {
@@ -1058,10 +1053,10 @@
           // Add new tabs to front of history in the order they were found
           const updatedHistory = [...newTabsFound, ...history];
 
-          // Trim if necessary
-          while (updatedHistory.length > MAX_HISTORY) {
-            updatedHistory.pop();
-          }
+          // Removed trimming code:
+          // while (updatedHistory.length > MAX_HISTORY) {
+          //   updatedHistory.pop();
+          // }
 
           // Save updated history
           saveTabHistory(updatedHistory);
@@ -1073,8 +1068,8 @@
       console.error('Safari MRU Tab Switch: Error checking for new tabs:', e);
     }
 
-    // Update the last check time
-    lastNewTabCheckTime = Date.now();
+    // Removed last check time update
+    // lastNewTabCheckTime = Date.now();
   }
 
   // Removed the setInterval for periodic tab checking
