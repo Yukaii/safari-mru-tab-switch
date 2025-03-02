@@ -9,6 +9,7 @@
 // @grant       GM_setValue
 // @grant       GM_deleteValue
 // @grant       GM_getTab
+// @grant       GM_getTabs
 // @grant       GM_saveTab
 // @run-at      document-start
 // @noframes
