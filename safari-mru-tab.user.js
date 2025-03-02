@@ -621,6 +621,7 @@
           overflow: hidden;
           text-overflow: ellipsis;
           border-left: 4px solid #ffffff;
+          cursor: pointer;
         `;
       } else {
         tabItem.style.cssText = `
@@ -634,6 +635,7 @@
           overflow: hidden;
           text-overflow: ellipsis;
           border-left: 4px solid transparent;
+          cursor: pointer;
         `;
       }
 
@@ -651,6 +653,25 @@
 
       tabItem.appendChild(tabTitle);
       tabItem.appendChild(tabIndex);
+
+      // Add click handler to switch to this tab
+      tabItem.addEventListener('click', (e) => {
+        console.log(`Safari MRU Tab Switch: Tab clicked, index ${index}, title "${tab.title}"`);
+        e.stopPropagation();
+
+        // Update current index
+        currentCycleIndex = index;
+
+        // Hide the overlay
+        hideTabCycleOverlay();
+
+        // Switch to the tab
+        setTimeout(() => {
+          isAltKeyPressed = false;
+          switchToSelectedCycleTab();
+        }, 50);
+      });
+
       tabList.appendChild(tabItem);
     });
 
@@ -813,7 +834,7 @@
 
   // Handle Escape key to cancel tab switching
   function handleEscapeKey(e) {
-    if (e.key === 'Escape' && isAltKeyPressed) {
+    if (e.key === 'Escape' && tabCycleOverlay && tabCycleOverlay.style.display === 'block') {
       console.log('Safari MRU Tab Switch: Escape key pressed, cancelling tab switch');
       e.preventDefault();
       e.stopPropagation();
