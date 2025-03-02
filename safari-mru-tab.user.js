@@ -963,6 +963,70 @@
   document.addEventListener('keydown', handleEscapeKey, true);
   window.addEventListener('keydown', handleEscapeKey, true);
 
+  // Handle Escape key whether or not Alt is held down
+  if (e.key === 'Escape' || e.keyCode === 27) {
+    if (isAltKeyPressed || (tabCycleOverlay && tabCycleOverlay.style.display === 'block')) {
+      console.log('Safari MRU Tab Switch: Escape key pressed, cancelling tab switch');
+      e.preventDefault();
+      e.stopPropagation();
+
+      // Reset state and hide overlay
+      isAltKeyPressed = false;
+      hideTabCycleOverlay();
+
+      // Cancel any pending operation
+      if (altKeyDebounceTimer) {
+        clearTimeout(altKeyDebounceTimer);
+        altKeyDebounceTimer = null;
+      }
+
+      return false;
+    }
+  }
+
+  // Add additional document-level keydown handler with highest priority for Escape
+  document.addEventListener('keydown', function(e) {
+    // Explicitly handle Alt+Escape combination
+    if ((e.altKey && (e.key === 'Escape' || e.keyCode === 27)) ||
+        (isAltKeyPressed && (e.key === 'Escape' || e.keyCode === 27))) {
+      console.log('Safari MRU Tab Switch: Alt+Escape detected, cancelling tab switch');
+      e.preventDefault();
+      e.stopPropagation();
+
+      // Reset state and hide overlay
+      isAltKeyPressed = false;
+      hideTabCycleOverlay();
+
+      // Cancel any pending operation
+      if (altKeyDebounceTimer) {
+        clearTimeout(altKeyDebounceTimer);
+        altKeyDebounceTimer = null;
+      }
+
+      return false;
+    }
+  }, true); // true for useCapture to ensure this runs before other handlers
+
+  // Also add the same handler to window for extra safety
+  window.addEventListener('keydown', function(e) {
+    if ((e.altKey && (e.key === 'Escape' || e.keyCode === 27)) ||
+        (isAltKeyPressed && (e.key === 'Escape' || e.keyCode === 27))) {
+      console.log('Safari MRU Tab Switch: Alt+Escape detected at window level, cancelling tab switch');
+      e.preventDefault();
+      e.stopPropagation();
+
+      isAltKeyPressed = false;
+      hideTabCycleOverlay();
+
+      if (altKeyDebounceTimer) {
+        clearTimeout(altKeyDebounceTimer);
+        altKeyDebounceTimer = null;
+      }
+
+      return false;
+    }
+  }, true);
+
   // Handle visibility change - refresh data when tab becomes visible
   document.addEventListener('visibilitychange', function() {
     console.log(`Safari MRU Tab Switch: Visibility changed to: ${document.visibilityState}`);
