@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        Safari MRU Tab Switch
 // @namespace   http://tampermonkey.net/
-// @version     1.8
+// @version     1.9
 // @description Cycle through most recently used tabs in Safari using AppleScript deep links
 // @author      You
 // @match       *://*/*
