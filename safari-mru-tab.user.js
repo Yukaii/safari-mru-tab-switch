@@ -490,6 +490,8 @@
           setTimeout(checkForNewTabs, 2000);
 
           // Removed setupTitleObserver() call
+      } else {
+          console.log('Safari MRU Tab Switch: Skipping tab tracking initialization - invalid tab data');
       }
   }
 
@@ -962,27 +964,6 @@
   // Add escape key handler
   document.addEventListener('keydown', handleEscapeKey, true);
   window.addEventListener('keydown', handleEscapeKey, true);
-
-  // Handle Escape key whether or not Alt is held down
-  if (e.key === 'Escape' || e.keyCode === 27) {
-    if (isAltKeyPressed || (tabCycleOverlay && tabCycleOverlay.style.display === 'block')) {
-      console.log('Safari MRU Tab Switch: Escape key pressed, cancelling tab switch');
-      e.preventDefault();
-      e.stopPropagation();
-
-      // Reset state and hide overlay
-      isAltKeyPressed = false;
-      hideTabCycleOverlay();
-
-      // Cancel any pending operation
-      if (altKeyDebounceTimer) {
-        clearTimeout(altKeyDebounceTimer);
-        altKeyDebounceTimer = null;
-      }
-
-      return false;
-    }
-  }
 
   // Add additional document-level keydown handler with highest priority for Escape
   document.addEventListener('keydown', function(e) {
