@@ -16,9 +16,12 @@ A Tampermonkey script for Safari that enables Most Recently Used (MRU) tab switc
 ### 1. Tampermonkey Script
 
 1. Install the [Tampermonkey extension for Safari](https://www.tampermonkey.net/)
-2. Click on the Tampermonkey icon and select "Create a new script"
-3. Copy and paste the contents of `safari-mru-tab.user.js` into the editor
-4. Save the script (Command+S)
+2. **[Click here to install the script](https://raw.githubusercontent.com/Yukaii/safari-mru-tab-switch/refs/heads/main/safari-mru-tab.user.js)**
+
+Or manually:
+1. Click on the Tampermonkey icon and select "Create a new script"
+2. Copy and paste the contents of `safari-mru-tab.user.js` into the editor
+3. Save the script (Command+S)
 
 ### 2. Raycast Integration
 

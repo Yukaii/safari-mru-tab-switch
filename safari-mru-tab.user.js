@@ -13,6 +13,8 @@
 // @grant       GM_saveTab
 // @run-at      document-start
 // @noframes
+// @downloadURL  https://raw.githubusercontent.com/Yukaii/safari-mru-tab-switch/refs/heads/main/safari-mru-tab.user.js
+// @updateURL    https://raw.githubusercontent.com/Yukaii/safari-mru-tab-switch/refs/heads/main/safari-mru-tab.user.js
 // ==/UserScript==
 
 (function() {
