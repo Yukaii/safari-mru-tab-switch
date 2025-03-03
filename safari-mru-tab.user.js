@@ -127,7 +127,7 @@
     return {
       id: `tab_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       url: window.location.href,
-      title: document.title || window.location.href,
+      title: (document.querySelector("title")?.textContent) || window.location.href,
       index: tabIndex, // May be -1 if unknown
       lastAccessed: Date.now(),
     };
@@ -472,7 +472,7 @@
         tabData,
       );
 
-      checkForNewTabs()
+      checkForNewTabs();
     } else {
       console.log(
         "Safari MRU Tab Switch: Skipping tab tracking initialization - invalid tab data",
@@ -946,6 +946,51 @@
   } else {
     initializeTabTracking();
   }
+
+  // Watch for URL and title changes and update tab history
+  function watchUrlAndTitleChanges() {
+    let lastUrl = window.location.href;
+    let lastTitle = document.querySelector("title").textContent;
+
+    // Observe title changes using MutationObserver
+    const titleElement = document.querySelector("title");
+    if (titleElement) {
+      const titleObserver = new MutationObserver(() => {
+        if (titleElement.textContent !== lastTitle) {
+          lastTitle = titleElement.textContent;
+          console.log("Safari MRU Tab Switch: Title changed to", lastTitle);
+          const tabData = getCurrentTabInfo();
+          updateTabHistory(tabData);
+        }
+      });
+      titleObserver.observe(titleElement, { childList: true, characterData: true, subtree: true });
+    }
+
+    // Listen for URL changes using popstate and hashchange events
+    window.addEventListener("popstate", () => {
+      if (window.location.href !== lastUrl) {
+        lastUrl = window.location.href;
+        console.log(
+          "Safari MRU Tab Switch: URL changed via popstate to",
+          lastUrl,
+        );
+        const tabData = getCurrentTabInfo();
+        updateTabHistory(tabData);
+      }
+    });
+    window.addEventListener("hashchange", () => {
+      if (window.location.href !== lastUrl) {
+        lastUrl = window.location.href;
+        console.log(
+          "Safari MRU Tab Switch: URL changed via hashchange to",
+          lastUrl,
+        );
+        const tabData = getCurrentTabInfo();
+        updateTabHistory(tabData);
+      }
+    });
+  }
+  watchUrlAndTitleChanges();
 
   // Display a startup message in the console - UPDATED with new shortcut info
   console.log(
