@@ -264,7 +264,7 @@
     }
   }
 
-  function executeTabSwitch(deepLink, tabData) {
+  function executeTabSwitch(deepLink) {
     console.log(`Safari MRU Tab Switch: Executing deep link: ${deepLink}`);
 
     // Create a temporary link element to open the deep link
@@ -472,10 +472,7 @@
         tabData,
       );
 
-      // Also do a check for any other new tabs
-      setTimeout(checkForNewTabs, 2000);
-
-      // Removed setupTitleObserver() call
+      checkForNewTabs()
     } else {
       console.log(
         "Safari MRU Tab Switch: Skipping tab tracking initialization - invalid tab data",
@@ -690,7 +687,7 @@
 
     // Create deep link and execute
     const deepLink = createTabSwitchDeepLink(selectedTab.title);
-    const success = executeTabSwitch(deepLink, selectedTab);
+    const success = executeTabSwitch(deepLink);
 
     if (success) {
       // Update history - move the selected tab to front
