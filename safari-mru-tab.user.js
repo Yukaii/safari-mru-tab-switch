@@ -679,22 +679,22 @@
       return;
     }
 
-    // Always check for new tabs, removed time check
-    checkForNewTabs();
+    // Ensure tabs are updated before showing overlay
+    checkForNewTabs(() => {
+      // Always run cleanup before showing overlay
+      cleanupTabsUsingGMTabs((cleanHistory) => {
+        // Get fresh history and update the UI
+        tabCycleHistory = getTabHistory();
+        currentCycleIndex = 0;
+        initialCycleIndex = 0;
+        updateTabCycleOverlay();
 
-    // Always run cleanup before showing overlay
-    cleanupTabsUsingGMTabs((cleanHistory) => {
-      // Get fresh history and update the UI
-      tabCycleHistory = getTabHistory();
-      currentCycleIndex = 0;
-      initialCycleIndex = 0;
-      updateTabCycleOverlay();
-
-      // Show overlay with fade-in effect
-      overlay.style.display = 'block';
-      setTimeout(() => {
-        overlay.style.opacity = '1';
-      }, 30);
+        // Show overlay with fade-in effect
+        overlay.style.display = 'block';
+        setTimeout(() => {
+          overlay.style.opacity = '1';
+        }, 30);
+      });
     });
   }
 
@@ -1054,7 +1054,7 @@
   }
 
   // Enhanced function to check for new tabs and add them to history
-  function checkForNewTabs() {
+  function checkForNewTabs(callback) {
     console.log('Safari MRU Tab Switch: Checking for new tabs...');
 
     // Get current history
@@ -1099,9 +1099,11 @@
         } else {
           console.log('Safari MRU Tab Switch: No new tabs found');
         }
+        if (callback) { callback(); }
       });
     } catch (e) {
       console.error('Safari MRU Tab Switch: Error checking for new tabs:', e);
+      if (callback) { callback(); }
     }
 
     // Removed last check time update
