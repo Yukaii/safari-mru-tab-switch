@@ -181,23 +181,9 @@
   }
 
   // Create deep link for tab switching - UPDATED to strictly prioritize index
-  function createTabSwitchDeepLink(tabIndex, tabTitle) {
-      // Always try to use index first, only fall back to title as last resort
-      let argument = '';
-
-      if (typeof tabIndex === 'number' && tabIndex >= 0) {
-          // If we have a valid index (0 or greater), use that as the argument
-          argument = tabIndex.toString();
-          console.log(`Safari MRU Tab Switch: Using tab INDEX ${tabIndex} for switch`);
-      } else {
-          // Fall back to title only when no valid index is available
-          console.warn(`Safari MRU Tab Switch: No valid tab index available (got: ${tabIndex})`);
-          console.log("Safari MRU Tab Switch: Stack trace for debugging:", new Error().stack);
-          argument = tabTitle;
-          console.log(`Safari MRU Tab Switch: Falling back to title: "${tabTitle}"`);
-      }
-
-      return `${RAYCAST_DEEPLINK_PREFIX}?arguments=${encodeURIComponent(argument)}`;
+  function createTabSwitchDeepLink(tabTitle) {
+      console.log(`Safari MRU Tab Switch: Using tab title "${tabTitle}" for switch`);
+      return `${RAYCAST_DEEPLINK_PREFIX}?arguments=${encodeURIComponent(tabTitle)}`;
   }
 
   async function cleanupTabsUsingGMTabs() {
@@ -377,7 +363,6 @@
 
       // Create the deep link with strict index prioritization
       const deepLink = createTabSwitchDeepLink(
-          previousTab.index,
           previousTab.title
       );
 
@@ -706,7 +691,7 @@
     console.log("Safari MRU Tab Switch: Switching to selected tab:", selectedTab);
 
     // Create deep link and execute
-    const deepLink = createTabSwitchDeepLink(selectedTab.index, selectedTab.title);
+    const deepLink = createTabSwitchDeepLink(selectedTab.title);
     const success = executeTabSwitch(deepLink, selectedTab);
 
     if (success) {
@@ -866,19 +851,8 @@
       return 'History cleared';
   }
 
-  // Function to manually switch to a tab - Updated for strict index handling
-  function switchToTab(indexOrTitle) {
-      const parsedIndex = Number.parseInt(indexOrTitle, 10);
-      let deepLink;
-
-      if (!Number.isNaN(parsedIndex) && parsedIndex >= 0) {
-          console.log(`Safari MRU Tab Switch: Manual switch to tab index ${parsedIndex}`);
-          deepLink = createTabSwitchDeepLink(parsedIndex, null);
-      } else {
-          console.warn(`Safari MRU Tab Switch: Invalid tab index (${indexOrTitle}), falling back to title`);
-          deepLink = createTabSwitchDeepLink(-1, indexOrTitle);
-      }
-
+  function switchToTab(title) {
+      const deepLink = createTabSwitchDeepLink(title);
       return executeTabSwitch(deepLink);
   }
 
