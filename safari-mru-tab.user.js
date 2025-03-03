@@ -241,12 +241,6 @@
         const removalCount = history.length - updatedHistory.length;
         const removalPercentage = (removalCount / history.length) * 100;
 
-        if (removalCount > 0 && removalPercentage > 70) {
-          console.warn(`Safari MRU Tab Switch: Attempting to remove ${removalPercentage.toFixed(1)}% of tabs, which seems excessive. Skipping cleanup.`);
-          if (callback) callback(history);
-          return;
-        }
-
         // Save the updated history if changes were made
         if (updatedHistory.length !== history.length) {
           console.log(`Safari MRU Tab Switch: Removed ${history.length - updatedHistory.length} closed tabs from history`);
