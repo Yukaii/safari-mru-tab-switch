@@ -22,6 +22,9 @@
 
   console.log('Safari MRU Tab Switch: Script initialized with updated AppleScript deep link support');
 
+  const gmGetTabsAsync = () => new Promise((resolve, reject) => { GM_getTabs((tabs) => resolve(tabs)); });
+  const gmGetTabAsync = () => new Promise((resolve, reject) => { GM_getTab((tab) => resolve(tab)); });
+
   // Constants
   const HISTORY_KEY = 'mruTabHistoryWithIndices';
   const RAYCAST_DEEPLINK_PREFIX = 'raycast://script-commands/switch-safari-tab';
@@ -169,10 +172,11 @@
       saveTabHistory(history);
 
       // Store the tab data in the current tab's storage
-      GM_getTab(function(tab) {
+      (async () => {
+          const tab = await gmGetTabAsync();
           tab.mruTabData = tabData;
           GM_saveTab(tab);
-      });
+      })();
   }
 
   // Create deep link for tab switching - UPDATED to strictly prioritize index
@@ -195,65 +199,51 @@
       return `${RAYCAST_DEEPLINK_PREFIX}?arguments=${encodeURIComponent(argument)}`;
   }
 
-  // Improved cleanup function that's always called directly
-  function cleanupTabsUsingGMTabs(callback) {
+  async function cleanupTabsUsingGMTabs() {
     console.log('Safari MRU Tab Switch: Running fresh tab cleanup with GM_getTabs');
 
-    // Get current history
     const history = getTabHistory();
     if (!history || history.length === 0) {
-      if (callback) callback(history);
-      return;
+      return history;
     }
 
-    // Use GM_getTabs to get all active tabs
     try {
-      GM_getTabs(function(tabs) {
-        console.log('Safari MRU Tab Switch: Retrieved data for ' + Object.keys(tabs).length + ' active tabs');
+      const tabs = await gmGetTabsAsync();
+      console.log('Safari MRU Tab Switch: Retrieved data for ' + Object.keys(tabs).length + ' active tabs');
 
-        // Create a map of active tab URLs from GM_getTabs data
-        const activeTabUrls = new Set();
-        for (const [tabId, tabData] of Object.entries(tabs)) {
-          if (tabData.mruTabData && tabData.mruTabData.url) {
-            activeTabUrls.add(tabData.mruTabData.url);
-          }
+      const activeTabUrls = new Set();
+      for (const [tabId, tabData] of Object.entries(tabs)) {
+        if (tabData.mruTabData && tabData.mruTabData.url) {
+          activeTabUrls.add(tabData.mruTabData.url);
         }
+      }
 
-        console.log('Safari MRU Tab Switch: Found ' + activeTabUrls.size + ' active tab URLs');
+      console.log('Safari MRU Tab Switch: Found ' + activeTabUrls.size + ' active tab URLs');
 
-        // Only proceed if we have a reasonable number of active URLs
-        if (activeTabUrls.size < 2 && history.length > 3) {
+      if (activeTabUrls.size < 2 && history.length > 3) {
           console.warn('Safari MRU Tab Switch: Too few active URLs detected, skipping cleanup');
-          if (callback) callback(history);
-          return;
-        }
+          return history;
+      }
 
-        // Filter history to keep only tabs that are still active
-        const updatedHistory = history.filter(historyTab => {
-          const isActive = activeTabUrls.has(historyTab.url);
-          if (!isActive) {
-            console.log(`Safari MRU Tab Switch: Removing closed tab from history: ${historyTab.title}`);
-          }
-          return isActive;
-        });
-
-        // Additional safety check - don't remove too many tabs at once
-        const removalCount = history.length - updatedHistory.length;
-        const removalPercentage = (removalCount / history.length) * 100;
-
-        // Save the updated history if changes were made
-        if (updatedHistory.length !== history.length) {
-          console.log(`Safari MRU Tab Switch: Removed ${history.length - updatedHistory.length} closed tabs from history`);
-          saveTabHistory(updatedHistory);
-          if (callback) callback(updatedHistory);
-        } else {
-          console.log('Safari MRU Tab Switch: No closed tabs found in history');
-          if (callback) callback(history);
-        }
+      const updatedHistory = history.filter(historyTab => {
+         const isActive = activeTabUrls.has(historyTab.url);
+         if (!isActive) {
+           console.log(`Safari MRU Tab Switch: Removing closed tab from history: ${historyTab.title}`);
+         }
+         return isActive;
       });
+
+      if (updatedHistory.length !== history.length) {
+         console.log(`Safari MRU Tab Switch: Removed ${history.length - updatedHistory.length} closed tabs from history`);
+         saveTabHistory(updatedHistory);
+         return updatedHistory;
+      } else {
+         console.log('Safari MRU Tab Switch: No closed tabs found in history');
+         return history;
+      }
     } catch (e) {
       console.error('Safari MRU Tab Switch: Error using GM_getTabs:', e);
-      if (callback) callback(history);
+      return history;
     }
   }
 
@@ -483,60 +473,51 @@
   }
 
   // Update the tab index if it wasn't available initially - Enhanced for better index capture
-  function updateTabIndex() {
-      GM_getTab(function(tab) {
-          if (tab.mruTabData) {
-              // Always try to update the index, even if we already have one
-              let newIndex = -1;
+  async function updateTabIndex() {
+      const tab = await gmGetTabAsync();
+      if (tab.mruTabData) {
+          let newIndex = -1;
+          try {
+              const metaTabIndex = document.querySelector('meta[name="safari-tab-index"]');
+              if (metaTabIndex) {
+                  newIndex = parseInt(metaTabIndex.getAttribute('content'), 10);
+                  console.log(`Safari MRU Tab Switch: Found tab index ${newIndex} from meta tag during update`);
+              }
+          } catch (e) {
+              console.error('Error updating tab index:', e);
+          }
+          if (newIndex >= 0 && newIndex !== tab.mruTabData.index) {
+              console.log(`Safari MRU Tab Switch: Updating tab index from ${tab.mruTabData.index} to ${newIndex}`);
+              tab.mruTabData.index = newIndex;
+              GM_saveTab(tab);
 
-              try {
-                  // Check for any indicators of tab index
-                  const metaTabIndex = document.querySelector('meta[name="safari-tab-index"]');
-                  if (metaTabIndex) {
-                      newIndex = parseInt(metaTabIndex.getAttribute('content'), 10);
-                      console.log(`Safari MRU Tab Switch: Found tab index ${newIndex} from meta tag during update`);
+              const history = getTabHistory();
+              let updated = false;
+
+              for (let i = 0; i < history.length; i++) {
+                  if (history[i].id === tab.mruTabData.id) {
+                      history[i].index = newIndex;
+                      updated = true;
+                      break;
                   }
-              } catch (e) {
-                  console.error('Error updating tab index:', e);
               }
 
-              // If we have a valid new index, update our stored data
-              if (newIndex >= 0 && newIndex !== tab.mruTabData.index) {
-                  console.log(`Safari MRU Tab Switch: Updating tab index from ${tab.mruTabData.index} to ${newIndex}`);
-                  tab.mruTabData.index = newIndex;
-                  GM_saveTab(tab);
-
-                  // Also update in the history
-                  const history = getTabHistory();
-                  let updated = false;
-
+              if (!updated) {
                   for (let i = 0; i < history.length; i++) {
-                      // Update by ID first if available
-                      if (history[i].id === tab.mruTabData.id) {
+                      if (history[i].url === tab.mruTabData.url) {
                           history[i].index = newIndex;
                           updated = true;
                           break;
                       }
                   }
+              }
 
-                  // If we couldn't find by ID, try by URL
-                  if (!updated) {
-                      for (let i = 0; i < history.length; i++) {
-                          if (history[i].url === tab.mruTabData.url) {
-                              history[i].index = newIndex;
-                              updated = true;
-                              break;
-                          }
-                      }
-                  }
-
-                  if (updated) {
-                      saveTabHistory(history);
-                      console.log(`Safari MRU Tab Switch: Updated index in history for ${tab.mruTabData.url}`);
-                  }
+              if (updated) {
+                  saveTabHistory(history);
+                  console.log(`Safari MRU Tab Switch: Updated index in history for ${tab.mruTabData.url}`);
               }
           }
-      });
+      }
   }
 
   // Create tab cycle overlay with improved width constraints and text handling
@@ -670,32 +651,24 @@
   }
 
   // Show the tab cycle overlay - Updated to always clean up tabs first
-  function showTabCycleOverlay() {
+  async function showTabCycleOverlay() {
     const overlay = createTabCycleOverlay();
 
-    // If we're already showing the overlay, don't rebuild it
     if (overlay.style.display === 'block' && overlay.style.opacity === '1') {
       console.log('Safari MRU Tab Switch: Overlay already showing, not rebuilding');
       return;
     }
+    await checkForNewTabs();
+    await cleanupTabsUsingGMTabs();
+    tabCycleHistory = getTabHistory();
+    currentCycleIndex = 0;
+    initialCycleIndex = 0;
+    updateTabCycleOverlay();
 
-    // Ensure tabs are updated before showing overlay
-    checkForNewTabs(() => {
-      // Always run cleanup before showing overlay
-      cleanupTabsUsingGMTabs((cleanHistory) => {
-        // Get fresh history and update the UI
-        tabCycleHistory = getTabHistory();
-        currentCycleIndex = 0;
-        initialCycleIndex = 0;
-        updateTabCycleOverlay();
-
-        // Show overlay with fade-in effect
-        overlay.style.display = 'block';
-        setTimeout(() => {
-          overlay.style.opacity = '1';
-        }, 30);
-      });
-    });
+    overlay.style.display = 'block';
+    setTimeout(() => {
+      overlay.style.opacity = '1';
+    }, 30);
   }
 
   // Hide the tab cycle overlay
@@ -1053,61 +1026,37 @@
       });
   }
 
-  // Enhanced function to check for new tabs and add them to history
-  function checkForNewTabs(callback) {
+  async function checkForNewTabs() {
     console.log('Safari MRU Tab Switch: Checking for new tabs...');
 
-    // Get current history
     const history = getTabHistory();
-
-    // Create a map of URLs we already know about
     const knownUrls = new Set(history.map(tab => tab.url));
 
-    // No longer check for title updates since title observer is removed
     try {
-      GM_getTabs(function(tabs) {
-        console.log(`Safari MRU Tab Switch: Found ${Object.keys(tabs).length} active tabs`);
+      const tabs = await gmGetTabsAsync();
+      console.log(`Safari MRU Tab Switch: Found ${Object.keys(tabs).length} active tabs`);
 
-        const newTabsFound = [];
+      const newTabsFound = [];
 
-        // Look for tabs that aren't in our history
-        for (const [tabId, tabData] of Object.entries(tabs)) {
-          if (tabData.mruTabData && tabData.mruTabData.url && !shouldExcludeUrl(tabData.mruTabData.url)) {
-            if (!knownUrls.has(tabData.mruTabData.url)) {
-              // New tab
-              console.log(`Safari MRU Tab Switch: Found new tab not in history: ${tabData.mruTabData.title}`);
-              newTabsFound.push(tabData.mruTabData);
-            }
-            // Removed title update checking
+      for (const [tabId, tabData] of Object.entries(tabs)) {
+        if (tabData.mruTabData && tabData.mruTabData.url && !shouldExcludeUrl(tabData.mruTabData.url)) {
+          if (!knownUrls.has(tabData.mruTabData.url)) {
+            console.log(`Safari MRU Tab Switch: Found new tab not in history: ${tabData.mruTabData.title}`);
+            newTabsFound.push(tabData.mruTabData);
           }
         }
+      }
 
-        // Save changes if we found new tabs
-        if (newTabsFound.length > 0) {
-          console.log(`Safari MRU Tab Switch: Adding ${newTabsFound.length} new tabs to history`);
-
-          // Add new tabs to front of history in the order they were found
-          const updatedHistory = [...newTabsFound, ...history];
-
-          // Removed trimming code:
-          // while (updatedHistory.length > MAX_HISTORY) {
-          //   updatedHistory.pop();
-          // }
-
-          // Save updated history
-          saveTabHistory(updatedHistory);
-        } else {
-          console.log('Safari MRU Tab Switch: No new tabs found');
-        }
-        if (callback) { callback(); }
-      });
+      if (newTabsFound.length > 0) {
+        console.log(`Safari MRU Tab Switch: Adding ${newTabsFound.length} new tabs to history`);
+        const updatedHistory = [...newTabsFound, ...history];
+        saveTabHistory(updatedHistory);
+      } else {
+        console.log('Safari MRU Tab Switch: No new tabs found');
+      }
     } catch (e) {
       console.error('Safari MRU Tab Switch: Error checking for new tabs:', e);
-      if (callback) { callback(); }
     }
-
-    // Removed last check time update
-    // lastNewTabCheckTime = Date.now();
   }
 
   // Removed the setInterval for periodic tab checking
