@@ -17,8 +17,8 @@
 // @updateURL    https://raw.githubusercontent.com/Yukaii/safari-mru-tab-switch/refs/heads/main/safari-mru-tab.user.js
 // ==/UserScript==
 
+// biome-ignore lint/complexity/useArrowFunction: <explanation>
 (function() {
-  'use strict';
 
   console.log('Safari MRU Tab Switch: Script initialized with updated AppleScript deep link support');
 
@@ -95,7 +95,7 @@
           // Get tab index from meta tag if available
           const metaTabIndex = document.querySelector('meta[name="safari-tab-index"]');
           if (metaTabIndex) {
-              tabIndex = parseInt(metaTabIndex.getAttribute('content'), 10);
+              tabIndex = Number.parseInt(metaTabIndex.getAttribute('content'), 10);
               console.log(`Safari MRU Tab Switch: Found tab index from meta tag: ${tabIndex}`);
           }
 
@@ -148,7 +148,7 @@
           return;
       }
 
-      console.log(`Safari MRU Tab Switch: Updating tab history with:`, tabData);
+      console.log("Safari MRU Tab Switch: Updating tab history with:", tabData);
 
       // Get current history
       const history = getTabHistory();
@@ -192,7 +192,7 @@
       } else {
           // Fall back to title only when no valid index is available
           console.warn(`Safari MRU Tab Switch: No valid tab index available (got: ${tabIndex})`);
-          console.log(`Safari MRU Tab Switch: Stack trace for debugging:`, new Error().stack);
+          console.log("Safari MRU Tab Switch: Stack trace for debugging:", new Error().stack);
           argument = tabTitle;
           console.log(`Safari MRU Tab Switch: Falling back to title: "${tabTitle}"`);
       }
@@ -210,16 +210,16 @@
 
     try {
       const tabs = await gmGetTabsAsync();
-      console.log('Safari MRU Tab Switch: Retrieved data for ' + Object.keys(tabs).length + ' active tabs');
+      console.log(`Safari MRU Tab Switch: Retrieved data for ${Object.keys(tabs).length} active tabs`);
 
       const activeTabUrls = new Set();
       for (const [tabId, tabData] of Object.entries(tabs)) {
-        if (tabData.mruTabData && tabData.mruTabData.url) {
+        if (tabData.mruTabData?.url) {
           activeTabUrls.add(tabData.mruTabData.url);
         }
       }
 
-      console.log('Safari MRU Tab Switch: Found ' + activeTabUrls.size + ' active tab URLs');
+      console.log(`Safari MRU Tab Switch: Found ${activeTabUrls.size} active tab URLs`);
 
       if (activeTabUrls.size < 2 && history.length > 3) {
           console.warn('Safari MRU Tab Switch: Too few active URLs detected, skipping cleanup');
@@ -238,10 +238,9 @@
          console.log(`Safari MRU Tab Switch: Removed ${history.length - updatedHistory.length} closed tabs from history`);
          saveTabHistory(updatedHistory);
          return updatedHistory;
-      } else {
+      }
          console.log('Safari MRU Tab Switch: No closed tabs found in history');
          return history;
-      }
     } catch (e) {
       console.error('Safari MRU Tab Switch: Error using GM_getTabs:', e);
       return history;
@@ -331,10 +330,9 @@
                   previousTab = tab;
                   console.log(`Safari MRU Tab Switch: Found previous tab with valid index ${tab.index}`);
                   break;
-              } else {
-                  console.warn(`Safari MRU Tab Switch: Skipping tab with invalid index:`,
-                             { title: tab.title, index: tab.index });
               }
+                  console.warn("Safari MRU Tab Switch: Skipping tab with invalid index:",
+                             { title: tab.title, index: tab.index });
           }
       }
 
@@ -357,7 +355,7 @@
       }
 
       // Log tab index for debugging
-      console.log(`Safari MRU Tab Switch: Switching to tab:`, previousTab);
+      console.log("Safari MRU Tab Switch: Switching to tab:", previousTab);
       console.log(`Safari MRU Tab Switch: Previous tab index: ${previousTab.index}, title: "${previousTab.title}"`);
 
       // Create the new history order - move previous tab to front, current tab second
@@ -481,7 +479,7 @@
           try {
               const metaTabIndex = document.querySelector('meta[name="safari-tab-index"]');
               if (metaTabIndex) {
-                  newIndex = parseInt(metaTabIndex.getAttribute('content'), 10);
+                  newIndex = Number.parseInt(metaTabIndex.getAttribute('content'), 10);
                   console.log(`Safari MRU Tab Switch: Found tab index ${newIndex} from meta tag during update`);
               }
           } catch (e) {
@@ -705,7 +703,7 @@
     if (tabCycleHistory.length === 0 || currentCycleIndex >= tabCycleHistory.length) return;
 
     const selectedTab = tabCycleHistory[currentCycleIndex];
-    console.log(`Safari MRU Tab Switch: Switching to selected tab:`, selectedTab);
+    console.log("Safari MRU Tab Switch: Switching to selected tab:", selectedTab);
 
     // Create deep link and execute
     const deepLink = createTabSwitchDeepLink(selectedTab.index, selectedTab.title);
@@ -729,32 +727,8 @@
     }
   }
 
-  // Handle alt key down with debouncing (modified to remove rapid debounce condition)
-  function handleAltKeyDown(e) {
-    // Only trigger on plain alt key, not with other modifiers
-    if (e.altKey && !e.metaKey && !e.ctrlKey && !e.shiftKey) {
-      altKeyPressedTimestamp = Date.now();
-
-      if (!isAltKeyPressed) {
-        console.log('Safari MRU Tab Switch: Alt key pressed, showing tab cycle overlay');
-        isAltKeyPressed = true;
-
-        // Clear any existing debounce timer
-        if (altKeyDebounceTimer) {
-          clearTimeout(altKeyDebounceTimer);
-        }
-
-        // Show overlay after a slight delay to avoid flickering on rapid key presses
-        altKeyDebounceTimer = setTimeout(() => {
-          showTabCycleOverlay();
-          altKeyDebounceTimer = null;
-        }, 50);
-      }
-    }
-  }
-
   // Handle alt key up - switch to selected tab only if changed
-  function handleAltKeyUp(e) {
+  function handleAltKeyUp() {
     if (isAltKeyPressed) {
       console.log('Safari MRU Tab Switch: Alt key released');
       isAltKeyPressed = false;
@@ -767,80 +741,30 @@
       } else {
         console.log('Safari MRU Tab Switch: Tab selection unchanged, not switching');
       }
-    }
-  }
-
-  // Handle alt key up - switch to selected tab only if changed
-  function handleAltKeyUp(e) {
-    if (isAltKeyPressed) {
-      console.log('Safari MRU Tab Switch: Alt key released');
-      isAltKeyPressed = false;
-      hideTabCycleOverlay();
-
-      // Only switch if the user actually changed the tab selection
-      if (currentCycleIndex !== initialCycleIndex) {
-        console.log('Safari MRU Tab Switch: Tab selection changed, switching tabs');
-        switchToSelectedCycleTab();
-      } else {
-        console.log('Safari MRU Tab Switch: Tab selection unchanged, not switching');
-      }
-    }
-  }
-
-  // Update tab key handler to support Shift+Tab for reverse cycling
-  function handleTabKeyWithAltPressed(e) {
-    if (isAltKeyPressed && e.key === 'Tab') {
-      console.log(`Safari MRU Tab Switch: ${e.shiftKey ? 'Shift+' : ''}Tab key pressed while Alt is down, cycling tabs ${e.shiftKey ? 'backwards' : 'forwards'}`);
-      e.preventDefault();
-      e.stopPropagation();
-
-      // Use Shift+Tab to go backward in the cycle
-      if (e.shiftKey) {
-        cycleToPreviousTab();
-      } else {
-        cycleToNextTab();
-      }
-    }
-  }
-
-  // Handle Escape key to cancel tab switching
-  function handleEscapeKey(e) {
-    e = e || window.event;
-    if ((e.key === 'Escape' || e.key === 'Esc' || e.keyCode === 27) && tabCycleOverlay && tabCycleOverlay.style.display === 'block') {
-      console.log('Safari MRU Tab Switch: Escape key pressed, cancelling tab switch');
-      e.preventDefault();
-      e.stopPropagation();
-
-      // Reset state and hide overlay
-      isAltKeyPressed = false;
-      hideTabCycleOverlay();
-
-      return false;
     }
   }
 
   function globalKeyDownHandler(e) {
-    e = e || window.event;
+    const evt = e || window.event;
 
     // Handle Escape key separately
-    if (e.key === 'Escape' || e.key === 'Esc' || e.keyCode === 27) {
-      if (!e.altKey && !isAltKeyPressed) {
+    if (evt.key === 'Escape' || evt.key === 'Esc' || evt.keyCode === 27) {
+      if (!evt.altKey && !isAltKeyPressed) {
         escKeyPrePressed = true;
         console.log('Safari MRU Tab Switch: Escape pressed before Alt, will cancel on Alt press');
-        e.preventDefault();
-        e.stopPropagation();
+        evt.preventDefault();
+        evt.stopPropagation();
         return false;
-      } else {
+      }
         // If Alt is already held, ignore the Escape event
         return;
-      }
     }
 
     // Handle backtick to always cancel
-    if (e.key === 'Dead') {
+    if (evt.key === 'Dead') {
       console.log('Safari MRU Tab Switch: Backtick pressed, cancelling tab switch');
-      e.preventDefault();
-      e.stopPropagation();
+      evt.preventDefault();
+      evt.stopPropagation();
       isAltKeyPressed = false;
       hideTabCycleOverlay();
       if (altKeyDebounceTimer) {
@@ -905,7 +829,7 @@
     }
   }
 
-  document.addEventListener('keyup', function(e) {
+  document.addEventListener('keyup', (e) => {
     if (e.key === 'Alt') {
       handleAltKeyUp(e);
     }
@@ -914,7 +838,7 @@
   window.addEventListener('keydown', globalKeyDownHandler, true);
 
   // Handle visibility change - refresh data when tab becomes visible
-  document.addEventListener('visibilitychange', function() {
+  document.addEventListener('visibilitychange', () => {
     console.log(`Safari MRU Tab Switch: Visibility changed to: ${document.visibilityState}`);
 
     if (document.visibilityState === 'visible') {
@@ -944,10 +868,10 @@
 
   // Function to manually switch to a tab - Updated for strict index handling
   function switchToTab(indexOrTitle) {
-      const parsedIndex = parseInt(indexOrTitle, 10);
+      const parsedIndex = Number.parseInt(indexOrTitle, 10);
       let deepLink;
 
-      if (!isNaN(parsedIndex) && parsedIndex >= 0) {
+      if (!Number.isNaN(parsedIndex) && parsedIndex >= 0) {
           console.log(`Safari MRU Tab Switch: Manual switch to tab index ${parsedIndex}`);
           deepLink = createTabSwitchDeepLink(parsedIndex, null);
       } else {
@@ -961,7 +885,7 @@
   // Debug functions for the console - Add tab inspection
   function debugShowActiveTabs() {
       console.log('Safari MRU Tab Switch: Retrieving active tabs data...');
-      GM_getTabs(function(tabs) {
+      GM_getTabs((tabs) => {
           console.log('Active tabs:', tabs);
           return tabs;
       });
@@ -980,7 +904,7 @@
       const newTabsFound = [];
 
       for (const [tabId, tabData] of Object.entries(tabs)) {
-        if (tabData.mruTabData && tabData.mruTabData.url && !shouldExcludeUrl(tabData.mruTabData.url)) {
+        if (tabData.mruTabData?.url && !shouldExcludeUrl(tabData.mruTabData.url)) {
           if (!knownUrls.has(tabData.mruTabData.url)) {
             console.log(`Safari MRU Tab Switch: Found new tab not in history: ${tabData.mruTabData.title}`);
             newTabsFound.push(tabData.mruTabData);
@@ -1009,7 +933,7 @@
       clearHistory: clearTabHistory,
       switchToTab: switchToTab,
       updateIndex: updateTabIndex,
-      checkUrl: function(url) { return !shouldExcludeUrl(url); },
+      checkUrl: (url) => !shouldExcludeUrl(url),
       showTabCycleOverlay: showTabCycleOverlay,
       hideTabCycleOverlay: hideTabCycleOverlay,
       showActiveTabs: debugShowActiveTabs,
