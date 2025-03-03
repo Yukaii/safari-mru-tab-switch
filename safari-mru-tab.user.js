@@ -70,10 +70,8 @@
   let initialCycleIndex = 0;
 
   // Update alt key handling with debouncing
-  let altKeyPressedTimestamp = 0;
   let altKeyDebounceTimer = null;
   let escKeyPrePressed = false;
-  const ALT_KEY_DEBOUNCE = 300; // ms
 
   // Utility function to check if a URL should be excluded from history
   function shouldExcludeUrl(url) {
@@ -188,12 +186,6 @@
     // Add this tab to the beginning of history
     history.unshift(tabData);
 
-    // Removed history size limitation:
-    // while (history.length > MAX_HISTORY) {
-    //     const removed = history.pop();
-    //     console.log(`Safari MRU Tab Switch: Removed oldest tab from history: ${removed.url}`);
-    // }
-
     // Save the updated history
     saveTabHistory(history);
 
@@ -272,30 +264,6 @@
     }
   }
 
-  // Update: Mark a tab as potentially closed
-  function markTabAsClosed(tab) {
-    if (!tab) return;
-
-    const history = getTabHistory();
-    let updated = false;
-
-    for (let i = 0; i < history.length; i++) {
-      if (history[i].url === tab.url) {
-        history[i].isClosed = true;
-        console.log(
-          `Safari MRU Tab Switch: Marked tab as potentially closed: ${tab.title}`,
-        );
-        updated = true;
-        break;
-      }
-    }
-
-    if (updated) {
-      saveTabHistory(history);
-    }
-  }
-
-  // Updated: Modify executeTabSwitch to handle potentially closed tabs
   function executeTabSwitch(deepLink, tabData) {
     console.log(`Safari MRU Tab Switch: Executing deep link: ${deepLink}`);
 
@@ -312,10 +280,6 @@
       console.log("Safari MRU Tab Switch: Deep link click event fired");
     } catch (e) {
       console.error("Safari MRU Tab Switch: Failed to click deep link:", e);
-      // If we fail to switch, the tab might be closed
-      if (tabData) {
-        markTabAsClosed(tabData);
-      }
       return false;
     }
 
