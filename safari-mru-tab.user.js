@@ -34,7 +34,7 @@
 
   // Constants
   const HISTORY_KEY = "mruTabHistoryWithIndices";
-  const RAYCAST_DEEPLINK_PREFIX = "raycast://script-commands/switch-safari-tab";
+  const RAYCAST_DEEPLINK_PREFIX = "raycast://script-commands/switch-safari-tab-url";
   // Removed MAX_HISTORY constant
   // Removed NEW_TAB_CHECK_INTERVAL constant
 
@@ -111,15 +111,6 @@
           `Safari MRU Tab Switch: Found tab index from meta tag: ${tabIndex}`,
         );
       }
-
-      // Try to extract index from URL or other page elements if needed
-      // This can be customized based on your specific needs
-      if (tabIndex < 0) {
-        // Add additional detection methods here if needed
-        console.log(
-          "Safari MRU Tab Switch: Could not determine tab index from standard methods",
-        );
-      }
     } catch (e) {
       console.error("Error getting tab index from meta:", e);
     }
@@ -127,6 +118,7 @@
     return {
       id: `tab_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       url: window.location.href,
+      safeUrl: window.location.href,
       title: (document.querySelector("title")?.textContent) || window.location.href,
       index: tabIndex, // May be -1 if unknown
       lastAccessed: Date.now(),
@@ -198,11 +190,11 @@
   }
 
   // Create deep link for tab switching - UPDATED to strictly prioritize index
-  function createTabSwitchDeepLink(tabTitle) {
+  function createTabSwitchDeepLink(safeUrl) {
     console.log(
-      `Safari MRU Tab Switch: Using tab title "${tabTitle}" for switch`,
+      `Safari MRU Tab Switch: Using safe URL "${safeUrl}" for switch`,
     );
-    return `${RAYCAST_DEEPLINK_PREFIX}?arguments=${encodeURIComponent(tabTitle)}`;
+    return `${RAYCAST_DEEPLINK_PREFIX}?arguments=${encodeURIComponent(safeUrl)}`;
   }
 
   async function cleanupTabsUsingGMTabs() {
@@ -686,7 +678,7 @@
     );
 
     // Create deep link and execute
-    const deepLink = createTabSwitchDeepLink(selectedTab.title);
+    const deepLink = createTabSwitchDeepLink(selectedTab.safeUrl);
     const success = executeTabSwitch(deepLink);
 
     if (success) {
@@ -970,10 +962,7 @@
     window.addEventListener("popstate", () => {
       if (window.location.href !== lastUrl) {
         lastUrl = window.location.href;
-        console.log(
-          "Safari MRU Tab Switch: URL changed via popstate to",
-          lastUrl,
-        );
+        console.log("Safari MRU Tab Switch: URL changed via popstate to", lastUrl);
         const tabData = getCurrentTabInfo();
         updateTabHistory(tabData);
       }
@@ -981,10 +970,7 @@
     window.addEventListener("hashchange", () => {
       if (window.location.href !== lastUrl) {
         lastUrl = window.location.href;
-        console.log(
-          "Safari MRU Tab Switch: URL changed via hashchange to",
-          lastUrl,
-        );
+        console.log("Safari MRU Tab Switch: URL changed via hashchange to", lastUrl);
         const tabData = getCurrentTabInfo();
         updateTabHistory(tabData);
       }
