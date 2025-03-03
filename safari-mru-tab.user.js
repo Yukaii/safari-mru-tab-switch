@@ -600,6 +600,7 @@
       if (index === currentCycleIndex) {
         tabItem.style.cssText = `
           padding: 8px 12px;
+          min-height: 40px;
           border-radius: 6px;
           background-color: rgba(59, 130, 246, 0.8);
           display: flex;
@@ -612,6 +613,7 @@
       } else {
         tabItem.style.cssText = `
           padding: 8px 12px;
+          min-height: 40px;
           border-radius: 6px;
           background-color: rgba(255, 255, 255, 0.1);
           display: flex;
@@ -625,12 +627,12 @@
 
       // Tab title container with improved text truncation
       const tabTitleContainer = document.createElement('div');
-      tabTitleContainer.style.cssText = 'flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis;';
+      tabTitleContainer.style.cssText = 'flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; height: 18px;';
 
       // Tab title with guaranteed truncation
       const tabTitle = document.createElement('span');
       tabTitle.textContent = tab.title;
-      tabTitle.style.cssText = 'display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis;';
+      tabTitle.style.cssText = 'display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; line-height: 1;';
 
       tabTitleContainer.appendChild(tabTitle);
       tabItem.appendChild(tabTitleContainer);
