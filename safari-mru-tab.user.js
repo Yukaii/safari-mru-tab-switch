@@ -728,19 +728,11 @@
     }
   }
 
-  // Handle alt key down with debouncing
+  // Handle alt key down with debouncing (modified to remove rapid debounce condition)
   function handleAltKeyDown(e) {
     // Only trigger on plain alt key, not with other modifiers
     if (e.altKey && !e.metaKey && !e.ctrlKey && !e.shiftKey) {
-      const now = Date.now();
-
-      // Prevent rapid fluctuations by debouncing
-      if (now - altKeyPressedTimestamp < ALT_KEY_DEBOUNCE) {
-        console.log('Safari MRU Tab Switch: Alt key pressed too rapidly, debouncing');
-        return;
-      }
-
-      altKeyPressedTimestamp = now;
+      altKeyPressedTimestamp = Date.now();
 
       if (!isAltKeyPressed) {
         console.log('Safari MRU Tab Switch: Alt key pressed, showing tab cycle overlay');
@@ -756,6 +748,23 @@
           showTabCycleOverlay();
           altKeyDebounceTimer = null;
         }, 50);
+      }
+    }
+  }
+
+  // Handle alt key up - switch to selected tab only if changed
+  function handleAltKeyUp(e) {
+    if (isAltKeyPressed) {
+      console.log('Safari MRU Tab Switch: Alt key released');
+      isAltKeyPressed = false;
+      hideTabCycleOverlay();
+
+      // Only switch if the user actually changed the tab selection
+      if (currentCycleIndex !== initialCycleIndex) {
+        console.log('Safari MRU Tab Switch: Tab selection changed, switching tabs');
+        switchToSelectedCycleTab();
+      } else {
+        console.log('Safari MRU Tab Switch: Tab selection unchanged, not switching');
       }
     }
   }
@@ -795,8 +804,9 @@
 
   // Handle Escape key to cancel tab switching
   function handleEscapeKey(e) {
-    if ((e.key === 'Escape' || e.key === 'Esc' || e.keyCode === 27) && tabCycleOverlay && tabCycleOverlay.style.display === 'block') {
-      console.log('Safari MRU Tab Switch: Escape key pressed, cancelling tab switch');
+    e = e || window.event
+    if ((e.key === 'Escape' || e.key === 'Esc' || e.keyCode === 27 || e.key === '`') && tabCycleOverlay && tabCycleOverlay.style.display === 'block') {
+      console.log('Safari MRU Tab Switch: Escape/backtick key pressed, cancelling tab switch');
       e.preventDefault();
       e.stopPropagation();
 
@@ -808,169 +818,75 @@
     }
   }
 
-  // Fix the Alt+Tab handling - don't switch immediately and always use fresh history
-  document.addEventListener('keydown', function(e) {
-      // Only use Alt+Tab now, but don't switch immediately - show overlay instead
-      if (e.altKey && e.key === 'Tab') {
-          console.log(`Safari MRU Tab Switch: Alt+${e.shiftKey ? 'Shift+' : ''}Tab detected! Showing tab cycle overlay`);
-          e.preventDefault();
-          e.stopPropagation();
+  function globalKeyDownHandler(e) {
+    e = e || window.event;
 
-          // Show the overlay instead of switching immediately
-          if (!isAltKeyPressed) {
-            isAltKeyPressed = true;
-            showTabCycleOverlay();
-
-            // Always use fresh history
-            if (tabCycleHistory.length > 1) {
-              // If Shift is pressed, go to last tab instead of second tab for initial selection
-              if (e.shiftKey && tabCycleHistory.length > 2) {
-                currentCycleIndex = tabCycleHistory.length - 1;
-              } else {
-                currentCycleIndex = 1; // Skip to the previous tab (index 1)
-              }
-              // Update initialCycleIndex to track where we started
-              initialCycleIndex = currentCycleIndex;
-              updateTabCycleOverlay();
-            }
-          } else {
-            // If already showing overlay, cycle in appropriate direction
-            if (e.shiftKey) {
-              cycleToPreviousTab();
-            } else {
-              cycleToNextTab();
-            }
-          }
-
-          return false;
+    // Handle Alt+Escape, Escape, or backtick to cancel tab switching
+    if ((e.altKey && (e.key === 'Escape' || e.key === 'Esc' || e.keyCode === 27)) ||
+        (isAltKeyPressed && (e.key === 'Escape' || e.key === 'Esc' || e.keyCode === 27)) ||
+        (e.key === '`')) {
+      console.log('Safari MRU Tab Switch: Alt/Escape/backtick detected, cancelling tab switch');
+      e.preventDefault();
+      e.stopPropagation();
+      isAltKeyPressed = false;
+      hideTabCycleOverlay();
+      if (altKeyDebounceTimer) {
+        clearTimeout(altKeyDebounceTimer);
+        altKeyDebounceTimer = null;
       }
-  }, true);
+      return false;
+    }
 
-  // Similar changes for window-level listener
-  window.addEventListener('keydown', function(e) {
-      if (e.altKey && e.key === 'Tab') {
-          // Similar implementation as above with Shift key support
-          // ...same implementation with shift key handling...
-          e.preventDefault();
-          e.stopPropagation();
-
-          // Similar implementation as above
-          if (!isAltKeyPressed) {
-            isAltKeyPressed = true;
-            showTabCycleOverlay();
-
-            if (tabCycleHistory.length > 1) {
-              if (e.shiftKey && tabCycleHistory.length > 2) {
-                currentCycleIndex = tabCycleHistory.length - 1;
-              } else {
-                currentCycleIndex = 1;
-              }
-              // Update initialCycleIndex here too
-              initialCycleIndex = currentCycleIndex;
-              updateTabCycleOverlay();
-            }
+    // Handle Alt+Tab (by key or keyCode 9)
+    if (e.altKey && (e.key === 'Tab' || e.keyCode === 9)) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!isAltKeyPressed) {
+        isAltKeyPressed = true;
+        showTabCycleOverlay();
+        if (tabCycleHistory.length > 1) {
+          if (e.shiftKey && tabCycleHistory.length > 2) {
+            currentCycleIndex = tabCycleHistory.length - 1;
           } else {
-            if (e.shiftKey) {
-              cycleToPreviousTab();
-            } else {
-              cycleToNextTab();
-            }
+            currentCycleIndex = 1;
           }
-
-          return false;
+          initialCycleIndex = currentCycleIndex;
+          updateTabCycleOverlay();
+        }
+      } else {
+        if (e.shiftKey) {
+          cycleToPreviousTab();
+        } else {
+          cycleToNextTab();
+        }
       }
-  }, true);
+      return false;
+    }
 
-  // Also update keyCode handler
-  document.addEventListener('keydown', function(e) {
-      if (e.altKey && e.keyCode === 9) {
-          // Similar implementation with Shift key support
-          // ...same implementation with shift key handling...
-
-          e.preventDefault();
-          e.stopPropagation();
-
-          if (!isAltKeyPressed) {
-            isAltKeyPressed = true;
-            showTabCycleOverlay();
-
-            if (tabCycleHistory.length > 1) {
-              if (e.shiftKey && tabCycleHistory.length > 2) {
-                currentCycleIndex = tabCycleHistory.length - 1;
-              } else {
-                currentCycleIndex = 1;
-              }
-              // Update initialCycleIndex here too
-              initialCycleIndex = currentCycleIndex;
-              updateTabCycleOverlay();
-            }
-          } else {
-            if (e.shiftKey) {
-              cycleToPreviousTab();
-            } else {
-              cycleToNextTab();
-            }
-          }
-
-          return false;
+    // Handle plain Alt key press
+    if (e.key === 'Alt') {
+      altKeyPressedTimestamp = Date.now();
+      if (!isAltKeyPressed) {
+        console.log('Safari MRU Tab Switch: Alt key pressed, showing tab cycle overlay');
+        isAltKeyPressed = true;
+        if (altKeyDebounceTimer) {
+          clearTimeout(altKeyDebounceTimer);
+        }
+        altKeyDebounceTimer = setTimeout(() => {
+          showTabCycleOverlay();
+          altKeyDebounceTimer = null;
+        }, 50);
       }
-  }, true);
+    }
+  }
 
-  // Set up keyboard shortcuts for tab cycling and ESC key
-  document.addEventListener('keydown', handleAltKeyDown);
   document.addEventListener('keyup', function(e) {
     if (e.key === 'Alt') {
       handleAltKeyUp(e);
     }
-  });
-  document.addEventListener('keydown', handleTabKeyWithAltPressed, true);
-
-  // Add escape key handler
-  document.addEventListener('keydown', handleEscapeKey, true);
-  window.addEventListener('keydown', handleEscapeKey, true);
-
-  // Add additional document-level keydown handler with highest priority for Escape
-  document.addEventListener('keydown', function(e) {
-    // Explicitly handle Alt+Escape combination
-    if ((e.altKey && (e.key === 'Escape' || e.keyCode === 27)) ||
-        (isAltKeyPressed && (e.key === 'Escape' || e.keyCode === 27))) {
-      console.log('Safari MRU Tab Switch: Alt+Escape detected, cancelling tab switch');
-      e.preventDefault();
-      e.stopPropagation();
-
-      // Reset state and hide overlay
-      isAltKeyPressed = false;
-      hideTabCycleOverlay();
-
-      // Cancel any pending operation
-      if (altKeyDebounceTimer) {
-        clearTimeout(altKeyDebounceTimer);
-        altKeyDebounceTimer = null;
-      }
-
-      return false;
-    }
-  }, true); // true for useCapture to ensure this runs before other handlers
-
-  // Also add the same handler to window for extra safety
-  window.addEventListener('keydown', function(e) {
-    if ((e.altKey && (e.key === 'Escape' || e.keyCode === 27)) ||
-        (isAltKeyPressed && (e.key === 'Escape' || e.keyCode === 27))) {
-      console.log('Safari MRU Tab Switch: Alt+Escape detected at window level, cancelling tab switch');
-      e.preventDefault();
-      e.stopPropagation();
-
-      isAltKeyPressed = false;
-      hideTabCycleOverlay();
-
-      if (altKeyDebounceTimer) {
-        clearTimeout(altKeyDebounceTimer);
-        altKeyDebounceTimer = null;
-      }
-
-      return false;
-    }
   }, true);
+  document.addEventListener('keydown', globalKeyDownHandler, true);
+  window.addEventListener('keydown', globalKeyDownHandler, true);
 
   // Handle visibility change - refresh data when tab becomes visible
   document.addEventListener('visibilitychange', function() {
