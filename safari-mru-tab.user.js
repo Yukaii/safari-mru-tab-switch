@@ -472,11 +472,6 @@
         tabData,
       );
 
-      // More aggressive index updates
-      setTimeout(updateTabIndex, 500);
-      setTimeout(updateTabIndex, 1500);
-      setTimeout(updateTabIndex, 3000);
-
       // Also do a check for any other new tabs
       setTimeout(checkForNewTabs, 2000);
 
@@ -485,62 +480,6 @@
       console.log(
         "Safari MRU Tab Switch: Skipping tab tracking initialization - invalid tab data",
       );
-    }
-  }
-
-  // Update the tab index if it wasn't available initially - Enhanced for better index capture
-  async function updateTabIndex() {
-    const tab = await gmGetTabAsync();
-    if (tab.mruTabData) {
-      let newIndex = -1;
-      try {
-        const metaTabIndex = document.querySelector(
-          'meta[name="safari-tab-index"]',
-        );
-        if (metaTabIndex) {
-          newIndex = Number.parseInt(metaTabIndex.getAttribute("content"), 10);
-          console.log(
-            `Safari MRU Tab Switch: Found tab index ${newIndex} from meta tag during update`,
-          );
-        }
-      } catch (e) {
-        console.error("Error updating tab index:", e);
-      }
-      if (newIndex >= 0 && newIndex !== tab.mruTabData.index) {
-        console.log(
-          `Safari MRU Tab Switch: Updating tab index from ${tab.mruTabData.index} to ${newIndex}`,
-        );
-        tab.mruTabData.index = newIndex;
-        GM_saveTab(tab);
-
-        const history = getTabHistory();
-        let updated = false;
-
-        for (let i = 0; i < history.length; i++) {
-          if (history[i].id === tab.mruTabData.id) {
-            history[i].index = newIndex;
-            updated = true;
-            break;
-          }
-        }
-
-        if (!updated) {
-          for (let i = 0; i < history.length; i++) {
-            if (history[i].url === tab.mruTabData.url) {
-              history[i].index = newIndex;
-              updated = true;
-              break;
-            }
-          }
-        }
-
-        if (updated) {
-          saveTabHistory(history);
-          console.log(
-            `Safari MRU Tab Switch: Updated index in history for ${tab.mruTabData.url}`,
-          );
-        }
-      }
     }
   }
 
@@ -996,7 +935,6 @@
     switchToPrevious: switchToPreviousTab,
     clearHistory: clearTabHistory,
     switchToTab: switchToTab,
-    updateIndex: updateTabIndex,
     checkUrl: (url) => !shouldExcludeUrl(url),
     showTabCycleOverlay: showTabCycleOverlay,
     hideTabCycleOverlay: hideTabCycleOverlay,
