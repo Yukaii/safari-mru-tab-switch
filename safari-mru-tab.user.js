@@ -795,7 +795,7 @@
 
   // Handle Escape key to cancel tab switching
   function handleEscapeKey(e) {
-    if (e.key === 'Escape' && tabCycleOverlay && tabCycleOverlay.style.display === 'block') {
+    if ((e.key === 'Escape' || e.key === 'Esc' || e.keyCode === 27) && tabCycleOverlay && tabCycleOverlay.style.display === 'block') {
       console.log('Safari MRU Tab Switch: Escape key pressed, cancelling tab switch');
       e.preventDefault();
       e.stopPropagation();
