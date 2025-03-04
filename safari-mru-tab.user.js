@@ -727,16 +727,13 @@
 
     // Handle Escape key separately
     if (evt.key === "Escape" || evt.key === "Esc" || evt.keyCode === 27) {
-      if (!evt.altKey && !isAltKeyPressed) {
-        escKeyPrePressed = true;
-        console.log(
-          "Safari MRU Tab Switch: Escape pressed before Alt, will cancel on Alt press",
-        );
-        evt.preventDefault();
-        evt.stopPropagation();
+      if (isAltKeyPressed) {
+        console.log("Safari MRU Tab Switch: Escape pressed, cancelling tab switch");
+        isAltKeyPressed = false;
+        hideTabCycleOverlay();
         return false;
       }
-      // If Alt is already held, ignore the Escape event
+      // Let Escape propagate normally when not in tab switching mode
       return;
     }
 
@@ -745,8 +742,6 @@
       console.log(
         "Safari MRU Tab Switch: Backtick pressed, cancelling tab switch",
       );
-      evt.preventDefault();
-      evt.stopPropagation();
       isAltKeyPressed = false;
       hideTabCycleOverlay();
       if (altKeyDebounceTimer) {
